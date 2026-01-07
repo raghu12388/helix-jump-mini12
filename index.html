@@ -1,83 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Stack Ball Mini – Fire Combo</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<style>
-html,body{
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#111;
-}
-canvas{display:block}
-#ui{
-  position:fixed;
-  top:10px;
-  left:50%;
-  transform:translateX(-50%);
-  color:#fff;
-  font-family:Arial;
-  font-size:18px;
-  background:#000a;
-  padding:6px 14px;
-  border-radius:20px;
-}
-#fire{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  color:orange;
-  font-size:22px;
-  font-family:Arial;
-  display:none;
-}
-</style>
+<title>TEST OK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body>
-
-<div id="ui">
-Score: <span id="score">0</span> |
-Combo: <span id="combo">0</span>
-</div>
-<div id="fire">🔥 FIRE MODE 🔥</div>
-
-<canvas id="game"></canvas>
-
-<script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-resize();
-window.onresize=resize;
-
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-}
-
-let gravity=0.6;
-let jump=-12;
-let score=0;
-let combo=0;
-let fire=false;
-let gameOver=false;
-
-const ball={
-  x:canvas.width/2,
-  y:150,
-  r:12,
-  vy:0
-};
-
-let platforms=[];
-const gap=80;
-
-function createPlatforms(){
-  platforms=[];
-  let y=200;
-  for(let i=0;i<18;i++){
-    platforms.push({
-      y,
-      type:Math.random()<0.25?"bad
+<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;font-size:30px;">
+HELLO WORKING ✅
+</body>
+</html>
