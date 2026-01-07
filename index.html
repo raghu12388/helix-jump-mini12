@@ -1,41 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Helix Jump Mini</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      background:#111;
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-family:Arial, sans-serif;
-    }
-    #box{
-      text-align:center;
-    }
-    button{
-      padding:15px 30px;
-      font-size:20px;
-      background:#00ff88;
-      border:none;
-      border-radius:8px;
-      cursor:pointer;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Helix Jump Mini</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+  font-family:Arial,Helvetica,sans-serif;
+}
+#ui{
+  position:fixed;
+  top:20px;
+  width:100%;
+  text-align:center;
+  color:white;
+  font-size:28px;
+  z-index:10;
+}
+#overlay{
+  position:fixed;
+  inset:0;
+  background:#111;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:20;
+}
+button{
+  padding:16px 40px;
+  font-size:20px;
+  border:none;
+  border-radius:10px;
+  background:#00ff88;
+  cursor:pointer;
+}
+canvas{display:block;}
+</style>
 </head>
 <body>
-  <div id="box">
-    <h1>HELIX JUMP READY ✅</h1>
-    <p>Repo + Vercel working</p>
-    <button>START GAME</button>
-  </div>
+
+<div id="ui">0</div>
+
+<div id="overlay">
+  <button id="startBtn">START GAME</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152/build/three.min.js"></script>
+
+<script>
+/* ===== BASIC SETUP ===== */
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,100);
+camera.position.set(0,6,8);
+camera.lookAt(0,0,0);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,0.9));
+
+/* ===== TOWER ===== */
+const tower=new THREE.Mesh(
+  new THREE.CylinderGeometry(1,1,10,32),
+  new THREE.MeshStandardMaterial({color:0x00ffff})
+);
+scene.add(tower);
+
+/* ===== BALL ===== */
+const ball=new THREE.Mesh(
+  new THREE.SphereGeometry(0.35,32,32),
+  new THREE.MeshStandardMaterial({color:0xff3333})
+);
+ball.position.set(1.3,4,0);
+scene.add(ball);
+
+/* ===== RINGS ===== */
+const rings=[];
+function createRings(){
+  for(let i=0;i<8;i++){
+    const ring=new THREE.Mesh(
+      new THREE.TorusGeometry(1.2,0.3,16,32,Math.PI*1.5),
+      new THREE.MeshStandardMaterial({color:i%2?0x00ff00:0xffcc00})
+    );
+    ring.rotation.x=Math.PI/2;
+    ring.position.y=3-i*1.2;
+    tower.add(ring);
+    rings.push(ring);
+  }
+}
+createRings();
+
+/* ===== GAME STATE ===== */
+let vy=0;
+let gravity=-0.02;
+let score=0;
+let running=false;
+const ui=document.getElementById("ui");
+const overlay=document.getElementById("overlay");
+
+/* ===== CONTROLS ===== */
+let drag=false,lastX=0;
+addEventListener("pointerdown",e=>{
+  if(!running)return;
+  drag=true;lastX=e.clientX;
+});
+addEventListener("pointerup",()=>drag=false);
+addEventListener("pointermove",e=>{
+  if(!drag)return;
+  tower.rotation.y+=(e.clientX-lastX)*0.005;
+  lastX=e.clientX;
+});
+addEventListener("click",()=>{
+  if(!running)return;
+  vy=0.25;
+});
+
+/* ===== START / RESET ===== */
+document.getElementById("startBtn").onclick=()=>{
+  overlay.style.display="none";
+  ball.position.set(1.3,4,0);
+  vy=0;
+  score=0;
+  ui.textContent=0;
+  running=true;
+};
+
+/* ===== LOOP ===== */
+function animate(){
+  requestAnimationFrame(animate);
+
+  if(running){
+    vy+=gravity;
+    ball.position.y+=vy;
+
+    for(const r of rings){
+      if(Math.abs(ball.position.y-r.position.y)<0.2){
+        vy=0.25;
+        score++;
+        ui.textContent=score;
+      }
+    }
+
+    if(ball.position.y<-6){
+      running=false;
+      overlay.style.display="flex";
+      document.getElementById("startBtn").textContent="RESTART";
+    }
+  }
+
+  renderer.render(scene,camera);
+}
+animate();
+
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+
 </body>
 </html>
+
 
