@@ -28,11 +28,7 @@ html,body{
   gap:15px;
 }
 #combo{color:#ffcc00}
-#fire{
-  color:#ff4500;
-  font-weight:bold;
-  display:none;
-}
+#fire{color:#ff4500;font-weight:bold;display:none}
 </style>
 </head>
 
@@ -47,6 +43,24 @@ html,body{
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
+/* ================= AUDIO + VIBRATION ================= */
+let audioReady = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq=400, dur=0.07){
+  if(!audioReady) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.frequency.value = freq;
+  osc.type = "sine";
+  gain.gain.value = 0.12;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+const vibrate = p => navigator.vibrate && navigator.vibrate(p);
+
 /* ================= SCENE ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -54,7 +68,6 @@ scene.background = new THREE.Color(0x111111);
 const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
 camera.position.set(0,6,10);
 
-/* ================= RENDERER ================= */
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
@@ -112,7 +125,14 @@ const gravity = -0.015;
 let smashing = false;
 
 /* ================= INPUT ================= */
-addEventListener("pointerdown",()=> smashing = true);
+addEventListener("pointerdown",()=>{
+  audioReady = true;
+  audioCtx.resume();
+  smashing = true;
+  playSound(600,0.05);
+  vibrate(15);
+});
+
 addEventListener("pointerup",()=>{
   smashing = false;
   combo = 0;
@@ -142,20 +162,26 @@ function animate(){
         combo++;
         score += fireMode ? 30 : 10;
         scoreEl.textContent = score;
-
         comboEl.textContent = "Combo x" + combo;
 
-        // FIRE MODE TRIGGER
+        playSound(350,0.07);
+        vibrate(20);
+
         if(combo >= 5){
           fireMode = true;
           fireEl.style.display = "inline";
           ballMat.emissive.setHex(0xff3300);
+          playSound(120,0.2);
+          vibrate([40,20,40]);
         }
 
         velocity = -0.35;
       }else{
         if(p.userData.danger && !fireMode){
           // GAME OVER
+          playSound(150,0.3);
+          vibrate([60,40,60]);
+
           score = 0;
           combo = 0;
           fireMode = false;
@@ -163,15 +189,20 @@ function animate(){
           comboEl.textContent = "Combo x0";
           fireEl.style.display = "none";
           ballMat.emissive.setHex(0x000000);
+
           ball.position.y = 4;
           velocity = 0;
         }else{
+          // BOUNCE
           velocity = 0.25;
           combo = 0;
           fireMode = false;
           comboEl.textContent = "Combo x0";
           fireEl.style.display = "none";
           ballMat.emissive.setHex(0x000000);
+
+          playSound(500,0.06);
+          vibrate(10);
         }
       }
     }
@@ -194,6 +225,7 @@ addEventListener("resize",()=>{
 
 </body>
 </html>
+
 
 
 
