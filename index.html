@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Stack Ball Mini</title>
@@ -8,8 +8,8 @@
 html,body{
   margin:0;
   padding:0;
-  overflow:hidden;
   background:#111;
+  overflow:hidden;
 }
 canvas{display:block;}
 #ui{
@@ -21,91 +21,66 @@ canvas{display:block;}
   font-family:Arial;
   font-size:18px;
 }
+#msg{
+  position:fixed;
+  top:50%;
+  width:100%;
+  text-align:center;
+  color:white;
+  font-size:28px;
+  display:none;
+}
 </style>
 </head>
 <body>
 
 <div id="ui">Score: <span id="score">0</span></div>
-<canvas id="game"></canvas>
+<div id="msg">GAME OVER<br><small>Tap to Restart</small></div>
+<canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let score = 0;
-let speed = 2.5;   // 👈 slow speed
-let ballY = canvas.height/3;
-let falling = true;
-
 const towerX = canvas.width/2;
-const towerRadius = 35;
+const ringRadius = 38;
+const ringWidth = 16;
 
+let ballY, score, speed, gameOver;
 const rings = [];
-for(let i=0;i<10;i++){
-  rings.push({
-    y: ballY + i*120,
-    gapStart: Math.random()*Math.PI*2,
-    gapSize: Math.PI/2
-  });
+
+function reset(){
+  ballY = canvas.height/3;
+  score = 0;
+  speed = 2;
+  gameOver = false;
+  rings.length = 0;
+  document.getElementById("score").innerText = score;
+  document.getElementById("msg").style.display="none";
+
+  for(let i=0;i<10;i++){
+    rings.push({
+      y: ballY + i*120,
+      gapStart: Math.random()*Math.PI*2,
+      gapSize: Math.PI/2,
+      passed:false
+    });
+  }
 }
+reset();
 
 function drawTower(){
   ctx.fillStyle="#00e5ff";
-  ctx.fillRect(towerX-15,0,30,canvas.height);
+  ctx.fillRect(towerX-14,0,28,canvas.height);
 }
 
 function drawRings(){
   rings.forEach(r=>{
     ctx.strokeStyle="#00ff88";
-    ctx.lineWidth=18;
+    ctx.lineWidth=ringWidth;
     ctx.beginPath();
-    ctx.arc(towerX,r.y,towerRadius,
+    ctx.arc(towerX,r.y,ringRadius,
       r.gapStart,
-      r.gapStart + Math.PI*2 - r.gapSize
-    );
-    ctx.stroke();
-  });
-}
-
-function drawBall(){
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.arc(towerX,ballY,12,0,Math.PI*2);
-  ctx.fill();
-}
-
-function update(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(falling){
-    ballY += speed;
-    rings.forEach(r=> r.y -= speed);
-  }
-
-  // scoring
-  rings.forEach((r,i)=>{
-    if(!r.passed && r.y < ballY){
-      r.passed = true;
-      score++;
-      document.getElementById("score").innerText = score;
-    }
-  });
-
-  drawTower();
-  drawRings();
-  drawBall();
-
-  requestAnimationFrame(update);
-}
-
-canvas.addEventListener("click",()=>{
-  falling = !falling;
-});
-
-update();
-</script>
-
-</body>
-</html>
+      r.gapStart + Math.PI
