@@ -27,8 +27,11 @@ html,body{
   display:flex;
   gap:15px;
 }
-#combo{
-  color:#ffcc00;
+#combo{color:#ffcc00}
+#fire{
+  color:#ff4500;
+  font-weight:bold;
+  display:none;
 }
 </style>
 </head>
@@ -38,6 +41,7 @@ html,body{
 <div id="ui">
   Score: <span id="score">0</span>
   <span id="combo">Combo x0</span>
+  <span id="fire">🔥 FIRE</span>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
@@ -65,20 +69,24 @@ scene.add(light);
 /* ================= UI DATA ================= */
 let score = 0;
 let combo = 0;
+let fireMode = false;
+
 const scoreEl = document.getElementById("score");
 const comboEl = document.getElementById("combo");
+const fireEl  = document.getElementById("fire");
 
 /* ================= BALL ================= */
+const ballMat = new THREE.MeshStandardMaterial({color:0xff8800});
 const ball = new THREE.Mesh(
   new THREE.SphereGeometry(0.6,32,32),
-  new THREE.MeshStandardMaterial({color:0xff8800})
+  ballMat
 );
 ball.position.y = 4;
 scene.add(ball);
 
 /* ================= STACK ================= */
 const platforms=[];
-const levelCount = 14;
+const levelCount = 16;
 
 function createPlatform(y){
   const danger = Math.random() < 0.25;
@@ -104,13 +112,14 @@ const gravity = -0.015;
 let smashing = false;
 
 /* ================= INPUT ================= */
-window.addEventListener("pointerdown",()=>{
-  smashing = true;
-});
-window.addEventListener("pointerup",()=>{
+addEventListener("pointerdown",()=> smashing = true);
+addEventListener("pointerup",()=>{
   smashing = false;
   combo = 0;
+  fireMode = false;
   comboEl.textContent = "Combo x0";
+  fireEl.style.display = "none";
+  ballMat.emissive.setHex(0x000000);
 });
 
 /* ================= GAME LOOP ================= */
@@ -131,25 +140,38 @@ function animate(){
         platforms.splice(i,1);
 
         combo++;
-        score += 10 * combo;
-
+        score += fireMode ? 30 : 10;
         scoreEl.textContent = score;
+
         comboEl.textContent = "Combo x" + combo;
 
-        velocity = -0.3;
+        // FIRE MODE TRIGGER
+        if(combo >= 5){
+          fireMode = true;
+          fireEl.style.display = "inline";
+          ballMat.emissive.setHex(0xff3300);
+        }
+
+        velocity = -0.35;
       }else{
-        if(p.userData.danger){
+        if(p.userData.danger && !fireMode){
           // GAME OVER
           score = 0;
           combo = 0;
+          fireMode = false;
           scoreEl.textContent = 0;
           comboEl.textContent = "Combo x0";
+          fireEl.style.display = "none";
+          ballMat.emissive.setHex(0x000000);
           ball.position.y = 4;
           velocity = 0;
         }else{
           velocity = 0.25;
           combo = 0;
+          fireMode = false;
           comboEl.textContent = "Combo x0";
+          fireEl.style.display = "none";
+          ballMat.emissive.setHex(0x000000);
         }
       }
     }
@@ -172,6 +194,7 @@ addEventListener("resize",()=>{
 
 </body>
 </html>
+
 
 
 
