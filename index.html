@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump – Stable</title>
+<title>Helix Jump – Full Box</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 html,body{
@@ -61,43 +61,22 @@ const ball = new THREE.Mesh(
 );
 scene.add(ball);
 
-/* ================= PLATFORMS (BOX METHOD) ================= */
+/* ================= FULL BOX PLATFORMS ================= */
 const platforms = [];
 const tmp = new THREE.Vector3();
 
 function createPlatform(y){
-  const group = new THREE.Group();
-  group.position.y = y;
-
-  const parts = 10;
-  const gapIndex = Math.floor(Math.random()*parts);
-
-  for(let i=0;i<parts;i++){
-    if(i === gapIndex) continue; // GAP
-
-    const angle = (i/parts)*Math.PI*2;
-
-    const box = new THREE.Mesh(
-      new THREE.BoxGeometry(2,0.3,0.6),
-      new THREE.MeshStandardMaterial({color:i%2?0x00ff00:0xffcc00})
-    );
-
-    box.position.set(
-      Math.cos(angle)*2,
-      0,
-      Math.sin(angle)*2
-    );
-    box.rotation.y = -angle;
-    box.userData.solid = true;
-
-    group.add(box);
-  }
-
-  tower.add(group);
-  platforms.push(group);
+  const box = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.1,2.1,0.4,32), // FULL SOLID CIRCLE
+    new THREE.MeshStandardMaterial({color:0x00ff66})
+  );
+  box.position.y = y;
+  box.userData.solid = true;
+  tower.add(box);
+  platforms.push(box);
 }
 
-/* create levels */
+/* create floors */
 for(let i=0;i<12;i++){
   createPlatform(-i*2.2);
 }
@@ -148,26 +127,17 @@ function animate(){
     velocityY += gravity;
     ball.position.y += velocityY;
 
-    for(const platform of platforms){
-      for(const piece of platform.children){
-        if(!piece.userData.solid) continue;
-
-        const wp = piece.getWorldPosition(tmp);
-        const dx = ball.position.x - wp.x;
-        const dz = ball.position.z - wp.z;
-        const dist = Math.sqrt(dx*dx + dz*dz);
-
-        if(
-          dist < 0.7 &&
-          ball.position.y <= platform.position.y + 0.35 &&
-          ball.position.y >= platform.position.y - 0.35 &&
-          velocityY < 0
-        ){
-          velocityY = 0.35;
-          score++;
-          scoreUI.textContent = score;
-          break;
-        }
+    for(const p of platforms){
+      const dy = ball.position.y - p.position.y;
+      if(
+        dy < 0.35 &&
+        dy > -0.35 &&
+        velocityY < 0
+      ){
+        velocityY = 0.35;
+        score++;
+        scoreUI.textContent = score;
+        break;
       }
     }
 
@@ -191,6 +161,7 @@ addEventListener("resize",()=>{
 </script>
 </body>
 </html>
+
 
 
 
