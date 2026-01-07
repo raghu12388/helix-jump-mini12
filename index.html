@@ -14,6 +14,8 @@ html,body{
   touch-action:none;
   font-family:Arial, sans-serif;
 }
+
+/* HUD */
 #ui{
   position:fixed;
   top:10px;
@@ -26,9 +28,34 @@ html,body{
   font-size:14px;
   display:flex;
   gap:15px;
+  z-index:10;
 }
 #combo{color:#ffcc00}
 #fire{color:#ff4500;font-weight:bold;display:none}
+
+/* GAME OVER */
+#gameover{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  z-index:20;
+}
+#gameover h1{margin:0 0 10px}
+#gameover button{
+  margin-top:12px;
+  padding:10px 20px;
+  border:none;
+  border-radius:8px;
+  font-size:16px;
+  font-weight:bold;
+  background:#00ff99;
+  color:#000;
+}
 </style>
 </head>
 
@@ -40,27 +67,15 @@ html,body{
   <span id="fire">🔥 FIRE</span>
 </div>
 
+<div id="gameover">
+  <h1>GAME OVER</h1>
+  <div>Score: <span id="finalScore">0</span></div>
+  <button id="restart">RESTART</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ================= AUDIO + VIBRATION ================= */
-let audioReady = false;
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSound(freq=400, dur=0.07){
-  if(!audioReady) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.frequency.value = freq;
-  osc.type = "sine";
-  gain.gain.value = 0.12;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + dur);
-}
-const vibrate = p => navigator.vibrate && navigator.vibrate(p);
-
 /* ================= SCENE ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -79,14 +94,17 @@ const light = new THREE.DirectionalLight(0xffffff,0.8);
 light.position.set(5,10,5);
 scene.add(light);
 
-/* ================= UI DATA ================= */
+/* ================= UI ================= */
 let score = 0;
 let combo = 0;
 let fireMode = false;
+let gameRunning = true;
 
 const scoreEl = document.getElementById("score");
 const comboEl = document.getElementById("combo");
 const fireEl  = document.getElementById("fire");
+const gameOverBox = document.getElementById("gameover");
+const finalScoreEl = document.getElementById("finalScore");
 
 /* ================= BALL ================= */
 const ballMat = new THREE.MeshStandardMaterial({color:0xff8800});
@@ -94,11 +112,10 @@ const ball = new THREE.Mesh(
   new THREE.SphereGeometry(0.6,32,32),
   ballMat
 );
-ball.position.y = 4;
 scene.add(ball);
 
 /* ================= STACK ================= */
-const platforms=[];
+let platforms = [];
 const levelCount = 16;
 
 function createPlatform(y){
@@ -115,8 +132,12 @@ function createPlatform(y){
   platforms.push(platform);
 }
 
-for(let i=0;i<levelCount;i++){
-  createPlatform(-i*1.5);
+function buildStack(){
+  platforms.forEach(p=>scene.remove(p));
+  platforms = [];
+  for(let i=0;i<levelCount;i++){
+    createPlatform(-i*1.5);
+  }
 }
 
 /* ================= PHYSICS ================= */
@@ -126,13 +147,9 @@ let smashing = false;
 
 /* ================= INPUT ================= */
 addEventListener("pointerdown",()=>{
-  audioReady = true;
-  audioCtx.resume();
+  if(!gameRunning) return;
   smashing = true;
-  playSound(600,0.05);
-  vibrate(15);
 });
-
 addEventListener("pointerup",()=>{
   smashing = false;
   combo = 0;
@@ -142,9 +159,42 @@ addEventListener("pointerup",()=>{
   ballMat.emissive.setHex(0x000000);
 });
 
-/* ================= GAME LOOP ================= */
+/* ================= GAME OVER ================= */
+function gameOver(){
+  gameRunning = false;
+  finalScoreEl.textContent = score;
+  gameOverBox.style.display = "flex";
+}
+
+/* ================= RESTART ================= */
+document.getElementById("restart").onclick = ()=>{
+  score = 0;
+  combo = 0;
+  fireMode = false;
+  scoreEl.textContent = 0;
+  comboEl.textContent = "Combo x0";
+  fireEl.style.display = "none";
+  ballMat.emissive.setHex(0x000000);
+
+  ball.position.y = 4;
+  velocity = 0;
+
+  buildStack();
+  gameOverBox.style.display = "none";
+  gameRunning = true;
+};
+
+/* ================= START ================= */
+buildStack();
+ball.position.y = 4;
+
+/* ================= LOOP ================= */
 function animate(){
   requestAnimationFrame(animate);
+  if(!gameRunning){
+    renderer.render(scene,camera);
+    return;
+  }
 
   velocity += gravity;
   ball.position.y += velocity;
@@ -155,54 +205,31 @@ function animate(){
       ball.position.y > p.position.y - 0.8
     ){
       if(smashing){
-        // SMASH
         scene.remove(p);
         platforms.splice(i,1);
 
         combo++;
         score += fireMode ? 30 : 10;
         scoreEl.textContent = score;
-        comboEl.textContent = "Combo x" + combo;
-
-        playSound(350,0.07);
-        vibrate(20);
+        comboEl.textContent = "Combo x"+combo;
 
         if(combo >= 5){
           fireMode = true;
           fireEl.style.display = "inline";
           ballMat.emissive.setHex(0xff3300);
-          playSound(120,0.2);
-          vibrate([40,20,40]);
         }
 
         velocity = -0.35;
       }else{
         if(p.userData.danger && !fireMode){
-          // GAME OVER
-          playSound(150,0.3);
-          vibrate([60,40,60]);
-
-          score = 0;
-          combo = 0;
-          fireMode = false;
-          scoreEl.textContent = 0;
-          comboEl.textContent = "Combo x0";
-          fireEl.style.display = "none";
-          ballMat.emissive.setHex(0x000000);
-
-          ball.position.y = 4;
-          velocity = 0;
+          gameOver();
         }else{
-          // BOUNCE
           velocity = 0.25;
           combo = 0;
           fireMode = false;
           comboEl.textContent = "Combo x0";
           fireEl.style.display = "none";
           ballMat.emissive.setHex(0x000000);
-
-          playSound(500,0.06);
-          vibrate(10);
         }
       }
     }
@@ -225,6 +252,7 @@ addEventListener("resize",()=>{
 
 </body>
 </html>
+
 
 
 
