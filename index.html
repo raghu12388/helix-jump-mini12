@@ -1,29 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Stack Ball Mini</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  background: #111;
-  overflow: hidden;
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#111;
 }
-#score {
-  position: fixed;
-  top: 10px;
-  width: 100%;
-  text-align: center;
-  color: white;
-  font-size: 20px;
-  font-family: Arial, sans-serif;
+#score{
+  position:fixed;
+  top:10px;
+  width:100%;
+  text-align:center;
+  color:#fff;
+  font-size:20px;
+  font-family:Arial;
 }
-canvas {
-  display: block;
-}
+canvas{display:block;}
 </style>
 </head>
 
@@ -33,68 +30,3 @@ canvas {
 
 <script>
 const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resize();
-window.addEventListener("resize", resize);
-
-let score = 0;
-const scoreEl = document.getElementById("score");
-
-// BALL (FIXED CENTER)
-const ball = {
-  x: () => canvas.width / 2,
-  y: 120,
-  r: 14,
-  vy: 0
-};
-
-const gravity = 0.6;
-let pressing = false;
-
-// PLATFORMS
-let platforms = [];
-const gap = 120;
-
-function createPlatforms() {
-  platforms = [];
-  for (let i = 0; i < 8; i++) {
-    platforms.push({
-      y: 250 + i * gap,
-      broken: false
-    });
-  }
-}
-createPlatforms();
-
-// INPUT
-window.addEventListener("pointerdown", () => pressing = true);
-window.addEventListener("pointerup", () => pressing = false);
-
-// UPDATE
-function update() {
-  ball.vy += pressing ? gravity * 2 : gravity;
-  ball.y += ball.vy;
-
-  platforms.forEach(p => {
-    p.y -= 3;
-
-    if (!p.broken &&
-        ball.y + ball.r > p.y &&
-        ball.y - ball.r < p.y + 20) {
-
-      if (pressing) {
-        p.broken = true;
-        ball.vy = -8;
-        score++;
-        scoreEl.innerText = "Score: " + score;
-      } else {
-        ball.vy = -10;
-      }
-    }
-
-    if (p.y < -
