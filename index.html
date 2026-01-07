@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <title>Stack Ball Mini</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<!-- TELEGRAM SAFE VIEWPORT -->
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <style>
 html,body{
@@ -18,7 +21,7 @@ html,body{
 /* HUD */
 #ui{
   position:fixed;
-  top:10px;
+  top:env(safe-area-inset-top,10px);
   left:50%;
   transform:translateX(-50%);
   background:rgba(0,0,0,0.6);
@@ -27,7 +30,7 @@ html,body{
   border-radius:8px;
   font-size:14px;
   display:flex;
-  gap:15px;
+  gap:12px;
   z-index:10;
 }
 #combo{color:#ffcc00}
@@ -38,7 +41,7 @@ html,body{
 #gameover{
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,0.85);
+  background:rgba(0,0,0,0.9);
   color:#fff;
   display:none;
   align-items:center;
@@ -47,21 +50,14 @@ html,body{
   z-index:20;
 }
 #gameover button{
-  margin-top:12px;
-  padding:10px 20px;
+  margin-top:14px;
+  padding:10px 22px;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   font-size:16px;
   font-weight:bold;
   background:#00ff99;
   color:#000;
-}
-#reward{
-  background:#222;
-  padding:12px 20px;
-  border-radius:10px;
-  margin-top:10px;
-  text-align:center;
 }
 </style>
 </head>
@@ -78,18 +74,27 @@ html,body{
 <div id="gameover">
   <h2>GAME OVER</h2>
   <div>Score: <span id="finalScore">0</span></div>
-
-  <div id="reward">
-    🎁 Watch Reward<br>
-    Get <b>+50 Coins</b>
-  </div>
-
   <button id="restart">RESTART</button>
 </div>
 
+<!-- THREE -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
+/* ================= TELEGRAM MINI APP INIT ================= */
+if (window.Telegram && Telegram.WebApp) {
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();                 // FULLSCREEN
+  Telegram.WebApp.setHeaderColor("#000000");
+  Telegram.WebApp.setBackgroundColor("#111111");
+
+  // Handle back button
+  Telegram.WebApp.BackButton.show();
+  Telegram.WebApp.BackButton.onClick(() => {
+    Telegram.WebApp.close();                // exit mini app
+  });
+}
+
 /* ================= STORAGE ================= */
 let coins = parseInt(localStorage.getItem("coins") || "0");
 const coinsEl = document.getElementById("coins");
@@ -119,20 +124,16 @@ light.position.set(5,10,5);
 scene.add(light);
 
 /* ================= UI DATA ================= */
-let score = 0;
-let combo = 0;
-let fireMode = false;
-let gameRunning = true;
-
-const scoreEl = document.getElementById("score");
-const comboEl = document.getElementById("combo");
-const fireEl  = document.getElementById("fire");
-const gameOverBox = document.getElementById("gameover");
-const finalScoreEl = document.getElementById("finalScore");
+let score=0, combo=0, fireMode=false, gameRunning=true;
+const scoreEl=document.getElementById("score");
+const comboEl=document.getElementById("combo");
+const fireEl=document.getElementById("fire");
+const gameOverBox=document.getElementById("gameover");
+const finalScoreEl=document.getElementById("finalScore");
 
 /* ================= BALL ================= */
-const ballMat = new THREE.MeshStandardMaterial({color:0xff8800});
-const ball = new THREE.Mesh(
+const ballMat=new THREE.MeshStandardMaterial({color:0xff8800});
+const ball=new THREE.Mesh(
   new THREE.SphereGeometry(0.6,32,32),
   ballMat
 );
@@ -143,25 +144,20 @@ let platforms=[];
 const levelCount=16;
 
 function createPlatform(y){
-  const danger = Math.random()<0.25;
-  const p = new THREE.Mesh(
+  const danger=Math.random()<0.25;
+  const p=new THREE.Mesh(
     new THREE.CylinderGeometry(3,3,0.6,32),
-    new THREE.MeshStandardMaterial({
-      color: danger ? 0xff3333 : 0x00ff99
-    })
+    new THREE.MeshStandardMaterial({color:danger?0xff3333:0x00ff99})
   );
   p.position.y=y;
   p.userData.danger=danger;
   scene.add(p);
   platforms.push(p);
 }
-
 function buildStack(){
   platforms.forEach(p=>scene.remove(p));
   platforms=[];
-  for(let i=0;i<levelCount;i++){
-    createPlatform(-i*1.5);
-  }
+  for(let i=0;i<levelCount;i++) createPlatform(-i*1.5);
 }
 
 /* ================= PHYSICS ================= */
@@ -173,8 +169,7 @@ let smashing=false;
 addEventListener("pointerdown",()=>{ if(gameRunning) smashing=true; });
 addEventListener("pointerup",()=>{
   smashing=false;
-  combo=0;
-  fireMode=false;
+  combo=0; fireMode=false;
   comboEl.textContent="Combo x0";
   fireEl.style.display="none";
   ballMat.emissive.setHex(0x000000);
@@ -187,25 +182,14 @@ function gameOver(){
   gameOverBox.style.display="flex";
 }
 
-/* ================= REWARD ================= */
-document.getElementById("reward").onclick=()=>{
-  addCoins(50);   // reward coins
-  document.getElementById("reward").innerHTML="✅ Reward Claimed!";
-};
-
 /* ================= RESTART ================= */
 document.getElementById("restart").onclick=()=>{
-  score=0;
-  combo=0;
-  fireMode=false;
+  score=0; combo=0; fireMode=false;
   scoreEl.textContent=0;
   comboEl.textContent="Combo x0";
   fireEl.style.display="none";
   ballMat.emissive.setHex(0x000000);
-
-  ball.position.y=4;
-  velocity=0;
-
+  ball.position.y=4; velocity=0;
   buildStack();
   gameOverBox.style.display="none";
   gameRunning=true;
@@ -218,10 +202,4 @@ ball.position.y=4;
 /* ================= LOOP ================= */
 function animate(){
   requestAnimationFrame(animate);
-  if(!gameRunning){
-    renderer.render(scene,camera);
-    return;
-  }
-
-  velocity+=gravity;
-  ball.p
+  if(!gameRu
