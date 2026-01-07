@@ -2,67 +2,45 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Stack Ball – Smooth Speed</title>
+<title>Stack Ball – Power Ups</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
 <style>
 html,body{
-  margin:0;
-  padding:0;
-  overflow:hidden;
-  background:#111;
-  font-family:Arial;
+  margin:0;padding:0;overflow:hidden;background:#111;font-family:Arial;
 }
 canvas{display:block}
 
 /* UI */
 #ui{
-  position:fixed;
-  top:10px;
-  width:100%;
-  text-align:center;
-  color:white;
-  font-size:16px;
-  z-index:10;
+  position:fixed;top:10px;width:100%;
+  text-align:center;color:white;font-size:15px;z-index:10;
 }
 
-/* Progress bar */
+/* Progress */
 #barWrap{
-  position:fixed;
-  top:40px;
-  left:50%;
+  position:fixed;top:38px;left:50%;
   transform:translateX(-50%);
-  width:60%;
-  height:10px;
-  background:#333;
-  border-radius:10px;
-  overflow:hidden;
+  width:60%;height:8px;background:#333;border-radius:8px;
 }
-#bar{
-  width:0%;
-  height:100%;
-  background:#00ff88;
+#bar{height:100%;width:0%;background:#00ff88}
+
+/* Power HUD */
+#power{
+  position:fixed;top:55px;width:100%;
+  text-align:center;color:#ffcc00;font-size:14px;
 }
 
 /* Overlay */
 #overlay{
-  position:fixed;
-  inset:0;
+  position:fixed;inset:0;
   background:rgba(0,0,0,.85);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  color:white;
-  font-size:20px;
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;color:white;font-size:20px;
 }
 #overlay button{
-  margin-top:14px;
-  padding:10px 26px;
-  font-size:16px;
-  border:none;
-  border-radius:8px;
-  background:#00ff88;
+  margin-top:14px;padding:10px 26px;
+  font-size:16px;border:none;border-radius:8px;background:#00ff88;
 }
 </style>
 </head>
@@ -70,12 +48,13 @@ canvas{display:block}
 <body>
 
 <div id="ui">
-Level: <span id="level">1</span> |
-Score: <span id="score">0</span> |
+Level <span id="level">1</span> |
+Score <span id="score">0</span> |
 🪙 <span id="coins">0</span>
 </div>
 
 <div id="barWrap"><div id="bar"></div></div>
+<div id="power"></div>
 
 <div id="overlay">
   <div id="msg"></div>
@@ -85,189 +64,156 @@ Score: <span id="score">0</span> |
 <canvas id="c"></canvas>
 
 <script>
-/* ================= STORAGE ================= */
-let coins = parseInt(localStorage.getItem("coins") || "0");
+/* ===== STORAGE ===== */
+let coins = +localStorage.getItem("coins") || 0;
 const coinsEl = document.getElementById("coins");
 coinsEl.textContent = coins;
-function addCoins(v){
-  coins += v;
-  localStorage.setItem("coins", coins);
-  coinsEl.textContent = coins;
-}
+const addCoins=v=>{coins+=v;localStorage.setItem("coins",coins);coinsEl.textContent=coins}
 
-/* ================= CANVAS ================= */
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
+/* ===== CANVAS ===== */
+const c=document.getElementById("c"),ctx=c.getContext("2d");
+const resize=()=>{c.width=innerWidth;c.height=innerHeight};
+resize();addEventListener("resize",resize);
+const CX=()=>c.width/2;
 
-function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-}
-resize(); addEventListener("resize", resize);
+/* ===== UI ===== */
+const uiLevel=document.getElementById("level");
+const uiScore=document.getElementById("score");
+const bar=document.getElementById("bar");
+const powerText=document.getElementById("power");
+const overlay=document.getElementById("overlay");
+const msg=document.getElementById("msg");
 
-const CX = () => canvas.width / 2;
+/* ===== GAME STATE ===== */
+let level=1,score=0,ringsLeft=0;
+let running=true,press=false;
 
-/* ================= UI ================= */
-const uiLevel = document.getElementById("level");
-const uiScore = document.getElementById("score");
-const bar = document.getElementById("bar");
-const overlay = document.getElementById("overlay");
-const msg = document.getElementById("msg");
+/* SPEED CONTROL */
+let baseSpeed=2.2,maxSpeed=4,gravity=0.6;
 
-/* ================= GAME STATE ================= */
-let level = 1;
-let score = 0;
-let ringsLeft = 0;
-let running = true;
-let press = false;
+/* ===== BALL ===== */
+const ball={x:CX(),y:120,r:12,vy:0};
 
-/* SPEED CONTROL (AUTO FIX) */
-let baseSpeed = 2.2;
-let maxSpeed  = 4;
-let gravity   = 0.6;
-
-/* ================= BALL ================= */
-const ball = {
-  x: CX(),
-  y: 120,
-  r: 12,
-  vy: 0
-};
-
-/* ================= INPUT ================= */
+/* ===== INPUT ===== */
 addEventListener("pointerdown",()=>press=true);
 addEventListener("pointerup",()=>press=false);
 
-/* ================= RINGS ================= */
-let rings = [];
-const gap = 120;
-
-function spawn(y){
-  return {
-    y,
-    gapAngle: Math.random() * Math.PI * 2,
-    broken: false
-  };
+/* ===== POWER UPS ===== */
+let power=null,powerTimer=0;
+function activatePower(type){
+  power=type;
+  powerTimer=performance.now();
+  powerText.textContent=type;
+}
+function clearPower(){
+  power=null;
+  powerText.textContent="";
 }
 
+/* ===== RINGS ===== */
+let rings=[],gap=120;
+const spawn=y=>({y,gapAngle:Math.random()*Math.PI*2,broken:false});
 function buildLevel(){
-  rings = [];
-  ringsLeft = 6 + level * 2;
-
-  gravity = 0.6 + Math.min(level,5) * 0.03;
-
-  for(let i=0;i<ringsLeft;i++){
-    rings.push(spawn(260 + i * gap));
-  }
-  bar.style.width = "0%";
+  rings=[];ringsLeft=6+level*2;
+  gravity=0.6+Math.min(level,5)*0.03;
+  for(let i=0;i<ringsLeft;i++) rings.push(spawn(260+i*gap));
+  bar.style.width="0%";
 }
 buildLevel();
 
-/* ================= UPDATE ================= */
+/* ===== UPDATE ===== */
 function update(){
   if(!running) return;
 
-  // BALL PHYSICS (SMOOTH)
-  ball.vy += press ? gravity * 1.4 : gravity;
-  ball.y  += ball.vy;
+  // Power timeout
+  if(power && performance.now()-powerTimer>3000){
+    if(power==="🐢 SLOW") baseSpeed=2.2;
+    clearPower();
+  }
+
+  ball.vy+= press ? gravity*1.4 : gravity;
+  ball.y+=ball.vy;
 
   rings.forEach(r=>{
-    const speed = Math.min(baseSpeed + level * 0.25, maxSpeed);
-    r.y -= speed;
+    let speed=Math.min(baseSpeed+level*0.25,maxSpeed);
+    if(power==="🐢 SLOW") speed=1.5;
+    r.y-=speed;
 
-    const dy = ball.y - r.y;
-    if(Math.abs(dy) < 10 && !r.broken){
-      const angle = Math.atan2(ball.x - CX(), 0) + Math.PI/2;
-      const diff  = Math.abs(angle - r.gapAngle);
+    const dy=ball.y-r.y;
+    if(Math.abs(dy)<10 && !r.broken){
+      const angle=Math.atan2(ball.x-CX(),0)+Math.PI/2;
+      const diff=Math.abs(angle-r.gapAngle);
 
-      if(diff >= 0.6){
-        r.broken = true;
-        ringsLeft--;
-        score += 10;
-        addCoins(1);
-        uiScore.textContent = score;
-        updateBar();
+      if(diff>=0.6 || power==="🔥 FIRE"){
+        r.broken=true;
+        ringsLeft--;score+=10;addCoins(1);
+        uiScore.textContent=score;updateBar();
+
+        // Random power drop
+        if(Math.random()<0.15){
+          activatePower(Math.random()<0.5?"🔥 FIRE":"🐢 SLOW");
+        }
       }
     }
 
-    if(r.y < -60){
-      r.y = canvas.height + gap;
-      r.broken = false;
-      r.gapAngle = Math.random() * Math.PI * 2;
+    if(r.y<-60){
+      r.y=c.height+gap;r.broken=false;
+      r.gapAngle=Math.random()*Math.PI*2;
     }
   });
 
-  if(ringsLeft <= 0){
-    running = false;
-    msg.textContent = "🎉 LEVEL COMPLETE";
-    addCoins(20);
-    overlay.style.display = "flex";
+  if(ringsLeft<=0){
+    running=false;msg.textContent="🎉 LEVEL COMPLETE";
+    addCoins(20);overlay.style.display="flex";
   }
-
-  if(ball.y > canvas.height + 50){
-    running = false;
-    msg.textContent = "💥 GAME OVER";
-    overlay.style.display = "flex";
+  if(ball.y>c.height+50){
+    running=false;msg.textContent="💥 GAME OVER";
+    overlay.style.display="flex";
   }
 }
 
-/* ================= DRAW ================= */
+/* ===== DRAW ===== */
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,c.width,c.height);
 
-  // Tower
   ctx.fillStyle="#00e5ff";
-  ctx.fillRect(CX()-18,0,36,canvas.height);
+  ctx.fillRect(CX()-18,0,36,c.height);
 
-  // Rings
   rings.forEach(r=>{
     if(r.broken) return;
     ctx.beginPath();
-    ctx.lineWidth = 18;
-    ctx.strokeStyle = "#00ff88";
-    ctx.arc(CX(), r.y, 80, r.gapAngle + 0.8, r.gapAngle + Math.PI*2);
+    ctx.lineWidth=18;
+    ctx.strokeStyle=power==="🔥 FIRE"?"#ff4500":"#00ff88";
+    ctx.arc(CX(),r.y,80,r.gapAngle+0.8,r.gapAngle+Math.PI*2);
     ctx.stroke();
   });
 
-  // Ball
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
-  ctx.fillStyle = "red";
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fillStyle=power==="🔥 FIRE"?"orange":"red";
   ctx.fill();
 }
 
-/* ================= PROGRESS ================= */
+/* ===== PROGRESS ===== */
 function updateBar(){
-  const total = 6 + level * 2;
-  const done  = total - ringsLeft;
-  bar.style.width = (done/total*100) + "%";
+  const total=6+level*2;
+  bar.style.width=((total-ringsLeft)/total*100)+"%";
 }
 
-/* ================= NEXT ================= */
+/* ===== NEXT ===== */
 function next(){
-  overlay.style.display = "none";
+  overlay.style.display="none";
   if(msg.textContent.includes("LEVEL")){
-    level++;
-    uiLevel.textContent = level;
+    level++;uiLevel.textContent=level;
   }else{
-    level = 1;
-    score = 0;
-    uiLevel.textContent = 1;
-    uiScore.textContent = 0;
+    level=1;score=0;uiLevel.textContent=1;uiScore.textContent=0;
   }
-  ball.y = 120;
-  ball.vy = 0;
-  running = true;
+  ball.y=120;ball.vy=0;running=true;clearPower();
   buildLevel();
 }
 
-/* ================= LOOP ================= */
-(function loop(){
-  update();
-  draw();
-  requestAnimationFrame(loop);
-})();
+/* ===== LOOP ===== */
+(function loop(){update();draw();requestAnimationFrame(loop)})();
 </script>
-
 </body>
 </html>
