@@ -1,134 +1,197 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump Fixed</title>
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Helix Jump – Stable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#000}
-#ui{position:fixed;top:15px;width:100%;text-align:center;color:#fff;font-size:26px;z-index:10}
-#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#111;z-index:20}
-button{padding:16px 36px;font-size:20px;border:0;border-radius:10px;background:#00ff88}
+html,body{
+  margin:0; overflow:hidden; background:#111; font-family:Arial;
+}
+#score{
+  position:fixed; top:15px; width:100%; text-align:center;
+  color:#fff; font-size:26px; z-index:10;
+}
+#overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.7);
+  display:flex; align-items:center; justify-content:center; z-index:20;
+}
+button{
+  padding:16px 40px; font-size:20px;
+  border:none; border-radius:10px;
+  background:#00ff88; cursor:pointer;
+}
 </style>
 </head>
 <body>
 
-<div id="ui">0</div>
-<div id="overlay"><button id="start">START</button></div>
+<div id="score">0</div>
+<div id="overlay"><button id="startBtn">START GAME</button></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
-/* ===== SCENE ===== */
-const scene=new THREE.Scene();
-const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,100);
-cam.position.set(0,6,9);
-cam.lookAt(0,0,0);
+/* ================= SCENE ================= */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0,7,10);
+camera.lookAt(0,0,0);
 
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 document.body.appendChild(renderer.domElement);
+
 scene.add(new THREE.AmbientLight(0xffffff,1));
 
-/* ===== TOWER ===== */
-const tower=new THREE.Mesh(
- new THREE.CylinderGeometry(1,1,12,32),
- new THREE.MeshStandardMaterial({color:0x00cccc})
-);
+/* ================= TOWER ================= */
+const tower = new THREE.Group();
 scene.add(tower);
 
-/* ===== BALL ===== */
-const ball=new THREE.Mesh(
- new THREE.SphereGeometry(0.35,32,32),
- new THREE.MeshStandardMaterial({color:0xff3333})
+const pole = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.6,0.6,40,16),
+  new THREE.MeshStandardMaterial({color:0x00ffff})
+);
+pole.position.y = -20;
+tower.add(pole);
+
+/* ================= BALL ================= */
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.35,16,16),
+  new THREE.MeshStandardMaterial({color:0xff3333})
 );
 scene.add(ball);
 
-/* ===== RINGS ===== */
-const rings=[];
-function buildRings(){
- for(let i=0;i<9;i++){
-  const ring=new THREE.Mesh(
-   new THREE.TorusGeometry(1.2,0.28,16,32,Math.PI*1.5),
-   new THREE.MeshStandardMaterial({color:i%2?0x00ff00:0xffcc00})
-  );
-  ring.rotation.x=Math.PI/2;
-  ring.position.y=3-i*1.3;
-  tower.add(ring);
-  rings.push(ring);
- }
+/* ================= PLATFORMS (BOX METHOD) ================= */
+const platforms = [];
+const tmp = new THREE.Vector3();
+
+function createPlatform(y){
+  const group = new THREE.Group();
+  group.position.y = y;
+
+  const parts = 10;
+  const gapIndex = Math.floor(Math.random()*parts);
+
+  for(let i=0;i<parts;i++){
+    if(i === gapIndex) continue; // GAP
+
+    const angle = (i/parts)*Math.PI*2;
+
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(2,0.3,0.6),
+      new THREE.MeshStandardMaterial({color:i%2?0x00ff00:0xffcc00})
+    );
+
+    box.position.set(
+      Math.cos(angle)*2,
+      0,
+      Math.sin(angle)*2
+    );
+    box.rotation.y = -angle;
+    box.userData.solid = true;
+
+    group.add(box);
+  }
+
+  tower.add(group);
+  platforms.push(group);
 }
-buildRings();
 
-/* ===== GAME STATE ===== */
-let vy=0;
-const gravity=-0.018;
-let running=false;
-let score=0;
-const ui=document.getElementById("ui");
+/* create levels */
+for(let i=0;i<12;i++){
+  createPlatform(-i*2.2);
+}
 
-/* ===== CONTROLS ===== */
-let drag=false,lastX=0;
-addEventListener("pointerdown",e=>{if(running){drag=true;lastX=e.clientX}});
-addEventListener("pointerup",()=>drag=false);
-addEventListener("pointermove",e=>{
- if(!drag)return;
- tower.rotation.y+=(e.clientX-lastX)*0.005;
- lastX=e.clientX;
+/* ================= GAME STATE ================= */
+let velocityY = 0;
+const gravity = -0.018;
+let running = false;
+let score = 0;
+
+const scoreUI = document.getElementById("score");
+const overlay = document.getElementById("overlay");
+
+/* ================= INPUT ================= */
+let dragging=false, lastX=0;
+
+renderer.domElement.addEventListener("pointerdown",e=>{
+  if(!running) return;
+  dragging=true; lastX=e.clientX;
 });
-addEventListener("click",()=>{
- if(running && vy<0) vy=0.32;
+renderer.domElement.addEventListener("pointerup",()=>dragging=false);
+renderer.domElement.addEventListener("pointermove",e=>{
+  if(!dragging) return;
+  const dx = e.clientX-lastX;
+  tower.rotation.y += dx*0.005;
+  lastX=e.clientX;
+});
+renderer.domElement.addEventListener("click",()=>{
+  if(!running || velocityY>0) return;
+  velocityY = 0.35;
 });
 
-/* ===== START ===== */
-document.getElementById("start").onclick=()=>{
- ball.position.set(1.3,4,0);
- vy=0;
- score=0;
- ui.textContent=0;
- running=true;
- document.getElementById("overlay").style.display="none";
+/* ================= START / RESET ================= */
+document.getElementById("startBtn").onclick = ()=>{
+  ball.position.set(0,4,0);
+  velocityY = 0;
+  score = 0;
+  scoreUI.textContent = score;
+  overlay.style.display="none";
+  running = true;
 };
 
-/* ===== LOOP ===== */
+/* ================= LOOP ================= */
 function animate(){
- requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 
- if(running){
-  vy+=gravity;
-  ball.position.y+=vy;
+  if(running){
+    velocityY += gravity;
+    ball.position.y += velocityY;
 
-  let landed=false;
-  for(const r of rings){
-   const dy=ball.position.y-r.getWorldPosition(new THREE.Vector3()).y;
-   if(dy<0.2 && dy>-0.25 && vy<0){
-    vy=0.32;
-    score++;
-    ui.textContent=score;
-    landed=true;
-    break;
-   }
+    for(const platform of platforms){
+      for(const piece of platform.children){
+        if(!piece.userData.solid) continue;
+
+        const wp = piece.getWorldPosition(tmp);
+        const dx = ball.position.x - wp.x;
+        const dz = ball.position.z - wp.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+
+        if(
+          dist < 0.7 &&
+          ball.position.y <= platform.position.y + 0.35 &&
+          ball.position.y >= platform.position.y - 0.35 &&
+          velocityY < 0
+        ){
+          velocityY = 0.35;
+          score++;
+          scoreUI.textContent = score;
+          break;
+        }
+      }
+    }
+
+    if(ball.position.y < -30){
+      running = false;
+      overlay.style.display="flex";
+      document.getElementById("startBtn").textContent="RESTART";
+    }
   }
 
-  if(!landed && ball.position.y<-7){
-    running=false;
-    document.getElementById("overlay").style.display="flex";
-    document.getElementById("start").innerText="RESTART";
-  }
- }
-
- renderer.render(scene,cam);
+  renderer.render(scene,camera);
 }
 animate();
 
+/* ================= RESIZE ================= */
 addEventListener("resize",()=>{
- cam.aspect=innerWidth/innerHeight;
- cam.updateProjectionMatrix();
- renderer.setSize(innerWidth,innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
 </body>
 </html>
+
 
 
 
