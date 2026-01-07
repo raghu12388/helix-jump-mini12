@@ -24,12 +24,21 @@ html,body{
   padding:8px 14px;
   border-radius:8px;
   font-size:14px;
+  display:flex;
+  gap:15px;
+}
+#combo{
+  color:#ffcc00;
 }
 </style>
 </head>
 
 <body>
-<div id="ui">Hold to Smash • Release to Bounce</div>
+
+<div id="ui">
+  Score: <span id="score">0</span>
+  <span id="combo">Combo x0</span>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
@@ -38,18 +47,13 @@ html,body{
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-const camera = new THREE.PerspectiveCamera(
-  60,
-  window.innerWidth/window.innerHeight,
-  0.1,
-  100
-);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
 camera.position.set(0,6,10);
 
 /* ================= RENDERER ================= */
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 document.body.appendChild(renderer.domElement);
 
 /* ================= LIGHT ================= */
@@ -57,6 +61,12 @@ scene.add(new THREE.AmbientLight(0xffffff,0.7));
 const light = new THREE.DirectionalLight(0xffffff,0.8);
 light.position.set(5,10,5);
 scene.add(light);
+
+/* ================= UI DATA ================= */
+let score = 0;
+let combo = 0;
+const scoreEl = document.getElementById("score");
+const comboEl = document.getElementById("combo");
 
 /* ================= BALL ================= */
 const ball = new THREE.Mesh(
@@ -68,7 +78,7 @@ scene.add(ball);
 
 /* ================= STACK ================= */
 const platforms=[];
-const levelCount = 12;
+const levelCount = 14;
 
 function createPlatform(y){
   const danger = Math.random() < 0.25;
@@ -99,6 +109,8 @@ window.addEventListener("pointerdown",()=>{
 });
 window.addEventListener("pointerup",()=>{
   smashing = false;
+  combo = 0;
+  comboEl.textContent = "Combo x0";
 });
 
 /* ================= GAME LOOP ================= */
@@ -114,16 +126,30 @@ function animate(){
       ball.position.y > p.position.y - 0.8
     ){
       if(smashing){
+        // SMASH
         scene.remove(p);
         platforms.splice(i,1);
+
+        combo++;
+        score += 10 * combo;
+
+        scoreEl.textContent = score;
+        comboEl.textContent = "Combo x" + combo;
+
         velocity = -0.3;
       }else{
         if(p.userData.danger){
           // GAME OVER
+          score = 0;
+          combo = 0;
+          scoreEl.textContent = 0;
+          comboEl.textContent = "Combo x0";
           ball.position.y = 4;
           velocity = 0;
         }else{
           velocity = 0.25;
+          combo = 0;
+          comboEl.textContent = "Combo x0";
         }
       }
     }
@@ -137,14 +163,16 @@ function animate(){
 animate();
 
 /* ================= RESIZE ================= */
-window.addEventListener("resize",()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
+addEventListener("resize",()=>{
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
+
 </body>
 </html>
+
 
 
 
