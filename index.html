@@ -1,103 +1,126 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Stack Ball Mini</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  background:#111;
-  overflow:hidden;
-}
-canvas{display:block;}
-#text{
-  position:fixed;
-  top:10px;
-  width:100%;
-  text-align:center;
-  color:#fff;
-  font-family:Arial;
-  font-size:18px;
-}
+  body { margin:0; background:#111; overflow:hidden; }
+  canvas { display:block; margin:auto; }
+  #ui {
+    position:fixed; top:10px; left:50%;
+    transform:translateX(-50%);
+    color:#fff; font-family:sans-serif;
+  }
 </style>
 </head>
 <body>
 
-<div id="text">Tap / Click to Start</div>
+<div id="ui">Tap / Click to Drop</div>
 <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let started=false;
-let ballY = 200;
-let speed = 1.5;
-let score = 0;
+let centerX = canvas.width/2;
+let centerY = 200;
 
-const rings=[];
+let ballY = centerY - 60;
+let velocity = 0;
+let gravity = 0.35;
+let isDropping = false;
+let gameOver = false;
 
-for(let i=0;i<8;i++){
-  rings.push({
-    y:300+i*120,
-    gapX: canvas.width/2 + (Math.random()*120-60)
+let rings = [];
+let ringGap = 120;
+let ringRadius = 80;
+
+function createRings(){
+  rings=[];
+  for(let i=0;i<8;i++){
+    rings.push({
+      y: centerY + i*ringGap,
+      gapAngle: Math.random()*Math.PI*2
+    });
+  }
+}
+createRings();
+
+function drawBall(){
+  ctx.beginPath();
+  ctx.arc(centerX, ballY, 10, 0, Math.PI*2);
+  ctx.fillStyle="red";
+  ctx.fill();
+}
+
+function drawPole(){
+  ctx.fillStyle="#00e5ff";
+  ctx.fillRect(centerX-8,0,16,canvas.height);
+}
+
+function drawRings(){
+  rings.forEach(r=>{
+    ctx.lineWidth=16;
+    ctx.strokeStyle="#00ff88";
+    ctx.beginPath();
+    ctx.arc(centerX, r.y, ringRadius, r.gapAngle+0.8, r.gapAngle+Math.PI*2-0.8);
+    ctx.stroke();
   });
+}
+
+function update(){
+  if(gameOver) return;
+
+  if(isDropping){
+    velocity += gravity;
+    ballY += velocity;
+  }
+
+  rings.forEach(r=>{
+    if(ballY+10 > r.y-8 && ballY-10 < r.y+8){
+      // simple collision = fail
+      gameOver=true;
+      document.getElementById("ui").innerText="GAME OVER – Tap to Restart";
+    }
+  });
+
+  if(ballY > canvas.height){
+    gameOver=true;
+    document.getElementById("ui").innerText="GAME OVER – Tap to Restart";
+  }
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // tower
-  ctx.fillStyle="#00d9ff";
-  ctx.fillRect(canvas.width/2-15,0,30,canvas.height);
-
-  // rings
-  ctx.fillStyle="#00ff88";
-  rings.forEach(r=>{
-    ctx.fillRect(canvas.width/2-80,r.y,60,15);
-    ctx.fillRect(canvas.width/2+20,r.y,60,15);
-  });
-
-  // ball
-  ctx.fillStyle="red";
-  ctx.beginPath();
-  ctx.arc(canvas.width/2,ballY,12,0,Math.PI*2);
-  ctx.fill();
+  drawPole();
+  drawRings();
+  drawBall();
 }
 
-function update(){
-  if(started){
-    ballY += speed;
-    rings.forEach(r=>r.y -= speed);
-
-    rings.forEach(r=>{
-      if(Math.abs(r.y-ballY)<6){
-        if(ballY<r.y+15){
-          started=false;
-          document.getElementById("text").innerHTML="GAME OVER<br>Tap to Restart";
-        }
-      }
-    });
-  }
-
+function loop(){
+  update();
   draw();
-  requestAnimationFrame(update);
+  requestAnimationFrame(loop);
 }
+loop();
 
-canvas.addEventListener("click",()=>{
-  if(!started){
-    ballY=200;
-    rings.forEach((r,i)=>r.y=300+i*120);
-    started=true;
-    document.getElementById("text").innerText="Playing...";
+addEventListener("click",()=>{
+  if(gameOver){
+    ballY=centerY-60;
+    velocity=0;
+    isDropping=false;
+    gameOver=false;
+    createRings();
+    document.getElementById("ui").innerText="Tap / Click to Drop";
+    return;
   }
+  isDropping=true;
 });
-
-update();
 </script>
+
 </body>
 </html>
