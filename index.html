@@ -2,165 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump – Full Box</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helix Jump Mini</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <style>
-html,body{
-  margin:0; overflow:hidden; background:#111; font-family:Arial;
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #9ad7e8;
+  font-family: Arial, sans-serif;
 }
-#score{
-  position:fixed; top:15px; width:100%; text-align:center;
-  color:#fff; font-size:26px; z-index:10;
-}
-#overlay{
-  position:fixed; inset:0; background:rgba(0,0,0,.7);
-  display:flex; align-items:center; justify-content:center; z-index:20;
-}
-button{
-  padding:16px 40px; font-size:20px;
-  border:none; border-radius:10px;
-  background:#00ff88; cursor:pointer;
+
+#hint {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 10;
 }
 </style>
 </head>
-<body>
 
-<div id="score">0</div>
-<div id="overlay"><button id="startBtn">START GAME</button></div>
+<body>
+<div id="hint">Tap / Click to Jump – Drag to Rotate</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
 <script>
-/* ================= SCENE ================= */
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(0,7,10);
-camera.lookAt(0,0,0);
+/* ---------- SCENE ---------- */
+const scene = new THREE.Sce
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
-document.body.appendChild(renderer.domElement);
-
-scene.add(new THREE.AmbientLight(0xffffff,1));
-
-/* ================= TOWER ================= */
-const tower = new THREE.Group();
-scene.add(tower);
-
-const pole = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.6,0.6,40,16),
-  new THREE.MeshStandardMaterial({color:0x00ffff})
-);
-pole.position.y = -20;
-tower.add(pole);
-
-/* ================= BALL ================= */
-const ball = new THREE.Mesh(
-  new THREE.SphereGeometry(0.35,16,16),
-  new THREE.MeshStandardMaterial({color:0xff3333})
-);
-scene.add(ball);
-
-/* ================= FULL BOX PLATFORMS ================= */
-const platforms = [];
-const tmp = new THREE.Vector3();
-
-function createPlatform(y){
-  const box = new THREE.Mesh(
-    new THREE.CylinderGeometry(2.1,2.1,0.4,32), // FULL SOLID CIRCLE
-    new THREE.MeshStandardMaterial({color:0x00ff66})
-  );
-  box.position.y = y;
-  box.userData.solid = true;
-  tower.add(box);
-  platforms.push(box);
-}
-
-/* create floors */
-for(let i=0;i<12;i++){
-  createPlatform(-i*2.2);
-}
-
-/* ================= GAME STATE ================= */
-let velocityY = 0;
-const gravity = -0.018;
-let running = false;
-let score = 0;
-
-const scoreUI = document.getElementById("score");
-const overlay = document.getElementById("overlay");
-
-/* ================= INPUT ================= */
-let dragging=false, lastX=0;
-
-renderer.domElement.addEventListener("pointerdown",e=>{
-  if(!running) return;
-  dragging=true; lastX=e.clientX;
-});
-renderer.domElement.addEventListener("pointerup",()=>dragging=false);
-renderer.domElement.addEventListener("pointermove",e=>{
-  if(!dragging) return;
-  const dx = e.clientX-lastX;
-  tower.rotation.y += dx*0.005;
-  lastX=e.clientX;
-});
-renderer.domElement.addEventListener("click",()=>{
-  if(!running || velocityY>0) return;
-  velocityY = 0.35;
-});
-
-/* ================= START / RESET ================= */
-document.getElementById("startBtn").onclick = ()=>{
-  ball.position.set(0,4,0);
-  velocityY = 0;
-  score = 0;
-  scoreUI.textContent = score;
-  overlay.style.display="none";
-  running = true;
-};
-
-/* ================= LOOP ================= */
-function animate(){
-  requestAnimationFrame(animate);
-
-  if(running){
-    velocityY += gravity;
-    ball.position.y += velocityY;
-
-    for(const p of platforms){
-      const dy = ball.position.y - p.position.y;
-      if(
-        dy < 0.35 &&
-        dy > -0.35 &&
-        velocityY < 0
-      ){
-        velocityY = 0.35;
-        score++;
-        scoreUI.textContent = score;
-        break;
-      }
-    }
-
-    if(ball.position.y < -30){
-      running = false;
-      overlay.style.display="flex";
-      document.getElementById("startBtn").textContent="RESTART";
-    }
-  }
-
-  renderer.render(scene,camera);
-}
-animate();
-
-/* ================= RESIZE ================= */
-addEventListener("resize",()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-</script>
-</body>
-</html>
 
 
 
