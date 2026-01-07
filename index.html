@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Stack Ball Mini</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
@@ -9,18 +9,17 @@
 html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
   background: #111;
-  touch-action: none;
+  overflow: hidden;
 }
-#ui {
+#score {
   position: fixed;
   top: 10px;
   width: 100%;
   text-align: center;
-  color: #fff;
+  color: white;
+  font-size: 20px;
   font-family: Arial, sans-serif;
-  font-size: 18px;
 }
 canvas {
   display: block;
@@ -29,13 +28,12 @@ canvas {
 </head>
 
 <body>
-<div id="ui">Score: <span id="score">0</span></div>
-<canvas id="game"></canvas>
+<div id="score">Score: 0</div>
+<canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
-const scoreEl = document.getElementById("score");
 
 function resize() {
   canvas.width = window.innerWidth;
@@ -44,116 +42,59 @@ function resize() {
 resize();
 window.addEventListener("resize", resize);
 
-// Game objects
 let score = 0;
-let speed = 4;
-let gravity = 0.4;
+const scoreEl = document.getElementById("score");
 
+// BALL (FIXED CENTER)
 const ball = {
-  x: 0,
-  y: 100,
-  r: 15,
+  x: () => canvas.width / 2,
+  y: 120,
+  r: 14,
   vy: 0
 };
 
-let platforms = [];
-const platformGap = 120;
+const gravity = 0.6;
+let pressing = false;
 
-// Create platforms
+// PLATFORMS
+let platforms = [];
+const gap = 120;
+
 function createPlatforms() {
   platforms = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 8; i++) {
     platforms.push({
-      y: 200 + i * platformGap,
-      angle: Math.random() * Math.PI * 2,
+      y: 250 + i * gap,
       broken: false
     });
   }
 }
 createPlatforms();
 
-// Input
-let isPressing = false;
-window.addEventListener("pointerdown", () => isPressing = true);
-window.addEventListener("pointerup", () => isPressing = false);
+// INPUT
+window.addEventListener("pointerdown", () => pressing = true);
+window.addEventListener("pointerup", () => pressing = false);
 
-// Update game
+// UPDATE
 function update() {
-  if (isPressing) {
-    ball.vy += gravity * 2;
-  } else {
-    ball.vy += gravity;
-  }
-
+  ball.vy += pressing ? gravity * 2 : gravity;
   ball.y += ball.vy;
 
   platforms.forEach(p => {
-    p.y -= speed;
+    p.y -= 3;
 
-    if (!p.broken && ball.y + ball.r > p.y && ball.y - ball.r < p.y + 20) {
-      if (isPressing) {
+    if (!p.broken &&
+        ball.y + ball.r > p.y &&
+        ball.y - ball.r < p.y + 20) {
+
+      if (pressing) {
         p.broken = true;
         ball.vy = -8;
         score++;
-        scoreEl.innerText = score;
+        scoreEl.innerText = "Score: " + score;
       } else {
         ball.vy = -10;
       }
     }
 
-    if (p.y < -50) {
-      p.y = canvas.height + platformGap;
-      p.broken = false;
-    }
-  });
-
-  if (ball.y > canvas.height) {
-    resetGame();
-  }
-}
-
-// Draw game
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Tower
-  ctx.fillStyle = "#00e5ff";
-  ctx.fillRect(canvas.width/2 - 25, 0, 50, canvas.height);
-
-  // Platforms
-  platforms.forEach(p => {
-    if (p.broken) return;
-    ctx.save();
-    ctx.translate(canvas.width/2, p.y);
-    ctx.rotate(p.angle);
-    ctx.fillStyle = "#00ff88";
-    ctx.fillRect(-120, -10, 240, 20);
-    ctx.restore();
-  });
-
-  // Ball
-  ctx.beginPath();
-  ctx.arc(canvas.width/2 + 40, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = "red";
-  ctx.fill();
-}
-
-// Reset
-function resetGame() {
-  score = 0;
-  scoreEl.innerText = score;
-  ball.y = 100;
-  ball.vy = 0;
-  createPlatforms();
-}
-
-// Loop
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-</body>
-</html>
+    if (p.y < -
