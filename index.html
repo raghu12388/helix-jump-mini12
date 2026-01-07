@@ -2,8 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Stack Ball – Sound</title>
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Stack Ball – Telegram Mini App</title>
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
 <style>
 html,body{
@@ -18,17 +20,18 @@ canvas{display:block}
 /* UI */
 #ui{
   position:fixed;
-  top:10px;
+  top:calc(env(safe-area-inset-top) + 10px);
   width:100%;
   text-align:center;
   color:white;
   font-size:18px;
+  z-index:10;
 }
 
 /* Progress bar */
 #barWrap{
   position:fixed;
-  top:45px;
+  top:calc(env(safe-area-inset-top) + 45px);
   left:50%;
   transform:translateX(-50%);
   width:60%;
@@ -36,6 +39,7 @@ canvas{display:block}
   background:#333;
   border-radius:10px;
   overflow:hidden;
+  z-index:10;
 }
 #bar{
   width:0%;
@@ -47,20 +51,21 @@ canvas{display:block}
 #overlay{
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,.8);
+  background:rgba(0,0,0,.85);
   display:none;
   align-items:center;
   justify-content:center;
   flex-direction:column;
   color:white;
   font-size:22px;
+  z-index:20;
 }
 #overlay button{
   margin-top:20px;
   padding:12px 30px;
   font-size:18px;
   border:none;
-  border-radius:6px;
+  border-radius:8px;
   background:#00ff88;
 }
 </style>
@@ -79,23 +84,26 @@ canvas{display:block}
 <canvas id="c"></canvas>
 
 <script>
-/* ================= AUDIO + VIBRATION ================= */
-let audioReady=false;
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioCtx();
+/* ================= TELEGRAM MINI APP INIT ================= */
+if (window.Telegram && Telegram.WebApp) {
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();                 // FULLSCREEN
+  Telegram.WebApp.setBackgroundColor("#111111");
+  Telegram.WebApp.setHeaderColor("#000000");
 
-function beep(freq=400, dur=0.08){
-  if(!audioReady) return;
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.frequency.value=freq;
-  g.gain.value=0.15;
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start();
-  o.stop(audioCtx.currentTime+dur);
-}
-function vibrate(p){
-  if(navigator.vibrate) navigator.vibrate(p);
+  // Back button handling
+  Telegram.WebApp.BackButton.show();
+  Telegram.WebApp.BackButton.onClick(() => {
+    Telegram.WebApp.close();
+  });
+
+  // Menu button (optional)
+  Telegram.WebApp.MainButton.setText("PLAY GAME");
+  Telegram.WebApp.MainButton.show();
+  Telegram.WebApp.MainButton.onClick(() => {
+    // Just hide menu button after first tap
+    Telegram.WebApp.MainButton.hide();
+  });
 }
 
 /* ================= CANVAS ================= */
@@ -116,3 +124,131 @@ const uiScore=document.getElementById("score");
 const bar=document.getElementById("bar");
 const overlay=document.getElementById("overlay");
 const msg=document.getElementById("msg");
+
+/* ================= GAME STATE ================= */
+let level=1, score=0, ringsLeft=0;
+let running=true, press=false;
+
+/* ================= BALL ================= */
+const ball={ x:CX(), y:120, r:12, vy:0 };
+let gravity=0.7;
+
+/* ================= INPUT ================= */
+addEventListener("pointerdown",()=>press=true);
+addEventListener("pointerup",()=>press=false);
+
+/* ================= RINGS ================= */
+let rings=[];
+const gap=120;
+
+function spawn(y){
+  return{ y, gapAngle:Math.random()*Math.PI*2, broken:false };
+}
+
+function buildLevel(){
+  rings=[];
+  ringsLeft=6+level*2;
+  gravity=0.65+level*0.05;
+  for(let i=0;i<ringsLeft;i++){
+    rings.push(spawn(260+i*gap));
+  }
+  bar.style.width="0%";
+}
+buildLevel();
+
+/* ================= UPDATE ================= */
+function update(){
+  if(!running) return;
+
+  ball.vy+= press ? gravity*2 : gravity;
+  ball.y+=ball.vy;
+
+  rings.forEach(r=>{
+    r.y-=3+level;
+    const dy=ball.y-r.y;
+    if(Math.abs(dy)<10 && !r.broken){
+      const angle=Math.atan2(ball.x-CX(),0)+Math.PI/2;
+      const diff=Math.abs(angle-r.gapAngle);
+      if(diff>=0.6){
+        r.broken=true;
+        ringsLeft--;
+        score+=10;
+        uiScore.textContent=score;
+        updateBar();
+      }
+    }
+    if(r.y<-60){
+      r.y=canvas.height+gap;
+      r.broken=false;
+      r.gapAngle=Math.random()*Math.PI*2;
+    }
+  });
+
+  if(ringsLeft<=0){
+    running=false;
+    msg.textContent="🎉 LEVEL COMPLETE";
+    overlay.style.display="flex";
+  }
+
+  if(ball.y>canvas.height+50){
+    running=false;
+    msg.textContent="💥 GAME OVER";
+    overlay.style.display="flex";
+  }
+}
+
+/* ================= DRAW ================= */
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle="#00e5ff";
+  ctx.fillRect(CX()-18,0,36,canvas.height);
+
+  rings.forEach(r=>{
+    if(r.broken) return;
+    ctx.beginPath();
+    ctx.lineWidth=18;
+    ctx.strokeStyle="#00ff88";
+    ctx.arc(CX(),r.y,80,r.gapAngle+0.8,r.gapAngle+Math.PI*2);
+    ctx.stroke();
+  });
+
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fillStyle="red";
+  ctx.fill();
+}
+
+/* ================= PROGRESS ================= */
+function updateBar(){
+  const total=6+level*2;
+  const done=total-ringsLeft;
+  bar.style.width=(done/total*100)+"%";
+}
+
+/* ================= NEXT / RESTART ================= */
+function next(){
+  overlay.style.display="none";
+  if(msg.textContent.includes("LEVEL")){
+    level++;
+    uiLevel.textContent=level;
+  }else{
+    level=1; score=0;
+    uiLevel.textContent=1;
+    uiScore.textContent=0;
+  }
+  ball.y=120; ball.vy=0;
+  running=true;
+  buildLevel();
+}
+
+/* ================= LOOP ================= */
+(function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
