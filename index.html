@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Stack Ball Fire</title>
+<title>Stack Ball Mini</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
 html,body{
@@ -10,40 +10,71 @@ html,body{
   padding:0;
   overflow:hidden;
   background:#111;
+  font-family:Arial;
 }
+canvas{display:block;}
+
 #ui{
   position:fixed;
   top:10px;
   width:100%;
   text-align:center;
-  font-family:Arial;
   color:white;
   font-size:18px;
 }
-canvas{display:block;}
+
+#gameover{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.75);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  color:white;
+  font-size:22px;
+}
+
+#gameover button{
+  margin-top:20px;
+  padding:12px 30px;
+  font-size:18px;
+  border:none;
+  border-radius:6px;
+  background:#00ff88;
+}
 </style>
 </head>
 
 <body>
+
 <div id="ui">Score: 0 | Combo: 0</div>
+
+<div id="gameover">
+  <div>💥 GAME OVER</div>
+  <div id="finalScore" style="margin-top:10px;"></div>
+  <button onclick="restart()">Tap to Restart</button>
+</div>
+
 <canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-const ui = document.getElementById("ui");
+const canvas=document.getElementById("c");
+const ctx=canvas.getContext("2d");
+const ui=document.getElementById("ui");
+const over=document.getElementById("gameover");
+const finalScore=document.getElementById("finalScore");
 
 function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
 }
-resize();
-addEventListener("resize", resize);
+resize(); addEventListener("resize",resize);
 
-const CX = () => canvas.width/2;
+const CX=()=>canvas.width/2;
 
 // GAME STATE
-let score=0, combo=0, fire=false;
+let score=0, combo=0, fire=false, running=true;
 let press=false;
 
 // BALL
@@ -84,6 +115,8 @@ resetRings();
 
 // UPDATE
 function update(){
+  if(!running) return;
+
   ball.vy += press ? gravity*2 : gravity;
   ball.y += ball.vy;
 
@@ -104,9 +137,7 @@ function update(){
         r.broken=true;
         score++;
       }else{
-        ball.vy=-10;
-        combo=0;
-        fire=false;
+        gameOver();
       }
     }
 
@@ -117,7 +148,8 @@ function update(){
     }
   });
 
-  if(ball.y>canvas.height) reset();
+  if(ball.y>canvas.height+50) gameOver();
+
   ui.textContent=`Score: ${score} | Combo: ${combo} ${fire?"🔥":""}`;
 }
 
@@ -149,14 +181,20 @@ function draw(){
   ctx.shadowBlur=0;
 }
 
-// RESET
-function reset(){
-  score=0;
-  combo=0;
-  fire=false;
-  ball.y=120;
-  ball.vy=0;
+// GAME OVER
+function gameOver(){
+  running=false;
+  over.style.display="flex";
+  finalScore.textContent="Score: "+score;
+}
+
+// RESTART
+function restart(){
+  score=0; combo=0; fire=false;
+  ball.y=120; ball.vy=0;
   resetRings();
+  running=true;
+  over.style.display="none";
 }
 
 // LOOP
