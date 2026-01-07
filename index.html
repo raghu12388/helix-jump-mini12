@@ -2,10 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Stack Ball – Telegram Mini App</title>
-
-<meta name="viewport"
-content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Stack Ball – Smooth Speed</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
 <style>
 html,body{
@@ -20,18 +18,18 @@ canvas{display:block}
 /* UI */
 #ui{
   position:fixed;
-  top:calc(env(safe-area-inset-top) + 10px);
+  top:10px;
   width:100%;
   text-align:center;
   color:white;
-  font-size:18px;
+  font-size:16px;
   z-index:10;
 }
 
 /* Progress bar */
 #barWrap{
   position:fixed;
-  top:calc(env(safe-area-inset-top) + 45px);
+  top:40px;
   left:50%;
   transform:translateX(-50%);
   width:60%;
@@ -39,7 +37,6 @@ canvas{display:block}
   background:#333;
   border-radius:10px;
   overflow:hidden;
-  z-index:10;
 }
 #bar{
   width:0%;
@@ -57,13 +54,12 @@ canvas{display:block}
   justify-content:center;
   flex-direction:column;
   color:white;
-  font-size:22px;
-  z-index:20;
+  font-size:20px;
 }
 #overlay button{
-  margin-top:20px;
-  padding:12px 30px;
-  font-size:18px;
+  margin-top:14px;
+  padding:10px 26px;
+  font-size:16px;
   border:none;
   border-radius:8px;
   background:#00ff88;
@@ -73,7 +69,12 @@ canvas{display:block}
 
 <body>
 
-<div id="ui">Level: <span id="level">1</span> | Score: <span id="score">0</span></div>
+<div id="ui">
+Level: <span id="level">1</span> |
+Score: <span id="score">0</span> |
+🪙 <span id="coins">0</span>
+</div>
+
 <div id="barWrap"><div id="bar"></div></div>
 
 <div id="overlay">
@@ -84,75 +85,81 @@ canvas{display:block}
 <canvas id="c"></canvas>
 
 <script>
-/* ================= TELEGRAM MINI APP INIT ================= */
-if (window.Telegram && Telegram.WebApp) {
-  Telegram.WebApp.ready();
-  Telegram.WebApp.expand();                 // FULLSCREEN
-  Telegram.WebApp.setBackgroundColor("#111111");
-  Telegram.WebApp.setHeaderColor("#000000");
-
-  // Back button handling
-  Telegram.WebApp.BackButton.show();
-  Telegram.WebApp.BackButton.onClick(() => {
-    Telegram.WebApp.close();
-  });
-
-  // Menu button (optional)
-  Telegram.WebApp.MainButton.setText("PLAY GAME");
-  Telegram.WebApp.MainButton.show();
-  Telegram.WebApp.MainButton.onClick(() => {
-    // Just hide menu button after first tap
-    Telegram.WebApp.MainButton.hide();
-  });
+/* ================= STORAGE ================= */
+let coins = parseInt(localStorage.getItem("coins") || "0");
+const coinsEl = document.getElementById("coins");
+coinsEl.textContent = coins;
+function addCoins(v){
+  coins += v;
+  localStorage.setItem("coins", coins);
+  coinsEl.textContent = coins;
 }
 
 /* ================= CANVAS ================= */
-const canvas=document.getElementById("c");
-const ctx=canvas.getContext("2d");
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
 
 function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
 }
-resize(); addEventListener("resize",resize);
+resize(); addEventListener("resize", resize);
 
-const CX=()=>canvas.width/2;
+const CX = () => canvas.width / 2;
 
 /* ================= UI ================= */
-const uiLevel=document.getElementById("level");
-const uiScore=document.getElementById("score");
-const bar=document.getElementById("bar");
-const overlay=document.getElementById("overlay");
-const msg=document.getElementById("msg");
+const uiLevel = document.getElementById("level");
+const uiScore = document.getElementById("score");
+const bar = document.getElementById("bar");
+const overlay = document.getElementById("overlay");
+const msg = document.getElementById("msg");
 
 /* ================= GAME STATE ================= */
-let level=1, score=0, ringsLeft=0;
-let running=true, press=false;
+let level = 1;
+let score = 0;
+let ringsLeft = 0;
+let running = true;
+let press = false;
+
+/* SPEED CONTROL (AUTO FIX) */
+let baseSpeed = 2.2;
+let maxSpeed  = 4;
+let gravity   = 0.6;
 
 /* ================= BALL ================= */
-const ball={ x:CX(), y:120, r:12, vy:0 };
-let gravity=0.7;
+const ball = {
+  x: CX(),
+  y: 120,
+  r: 12,
+  vy: 0
+};
 
 /* ================= INPUT ================= */
 addEventListener("pointerdown",()=>press=true);
 addEventListener("pointerup",()=>press=false);
 
 /* ================= RINGS ================= */
-let rings=[];
-const gap=120;
+let rings = [];
+const gap = 120;
 
 function spawn(y){
-  return{ y, gapAngle:Math.random()*Math.PI*2, broken:false };
+  return {
+    y,
+    gapAngle: Math.random() * Math.PI * 2,
+    broken: false
+  };
 }
 
 function buildLevel(){
-  rings=[];
-  ringsLeft=6+level*2;
-  gravity=0.65+level*0.05;
+  rings = [];
+  ringsLeft = 6 + level * 2;
+
+  gravity = 0.6 + Math.min(level,5) * 0.03;
+
   for(let i=0;i<ringsLeft;i++){
-    rings.push(spawn(260+i*gap));
+    rings.push(spawn(260 + i * gap));
   }
-  bar.style.width="0%";
+  bar.style.width = "0%";
 }
 buildLevel();
 
@@ -160,40 +167,47 @@ buildLevel();
 function update(){
   if(!running) return;
 
-  ball.vy+= press ? gravity*2 : gravity;
-  ball.y+=ball.vy;
+  // BALL PHYSICS (SMOOTH)
+  ball.vy += press ? gravity * 1.4 : gravity;
+  ball.y  += ball.vy;
 
   rings.forEach(r=>{
-    r.y-=3+level;
-    const dy=ball.y-r.y;
-    if(Math.abs(dy)<10 && !r.broken){
-      const angle=Math.atan2(ball.x-CX(),0)+Math.PI/2;
-      const diff=Math.abs(angle-r.gapAngle);
-      if(diff>=0.6){
-        r.broken=true;
+    const speed = Math.min(baseSpeed + level * 0.25, maxSpeed);
+    r.y -= speed;
+
+    const dy = ball.y - r.y;
+    if(Math.abs(dy) < 10 && !r.broken){
+      const angle = Math.atan2(ball.x - CX(), 0) + Math.PI/2;
+      const diff  = Math.abs(angle - r.gapAngle);
+
+      if(diff >= 0.6){
+        r.broken = true;
         ringsLeft--;
-        score+=10;
-        uiScore.textContent=score;
+        score += 10;
+        addCoins(1);
+        uiScore.textContent = score;
         updateBar();
       }
     }
-    if(r.y<-60){
-      r.y=canvas.height+gap;
-      r.broken=false;
-      r.gapAngle=Math.random()*Math.PI*2;
+
+    if(r.y < -60){
+      r.y = canvas.height + gap;
+      r.broken = false;
+      r.gapAngle = Math.random() * Math.PI * 2;
     }
   });
 
-  if(ringsLeft<=0){
-    running=false;
-    msg.textContent="🎉 LEVEL COMPLETE";
-    overlay.style.display="flex";
+  if(ringsLeft <= 0){
+    running = false;
+    msg.textContent = "🎉 LEVEL COMPLETE";
+    addCoins(20);
+    overlay.style.display = "flex";
   }
 
-  if(ball.y>canvas.height+50){
-    running=false;
-    msg.textContent="💥 GAME OVER";
-    overlay.style.display="flex";
+  if(ball.y > canvas.height + 50){
+    running = false;
+    msg.textContent = "💥 GAME OVER";
+    overlay.style.display = "flex";
   }
 }
 
@@ -201,44 +215,49 @@ function update(){
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
+  // Tower
   ctx.fillStyle="#00e5ff";
   ctx.fillRect(CX()-18,0,36,canvas.height);
 
+  // Rings
   rings.forEach(r=>{
     if(r.broken) return;
     ctx.beginPath();
-    ctx.lineWidth=18;
-    ctx.strokeStyle="#00ff88";
-    ctx.arc(CX(),r.y,80,r.gapAngle+0.8,r.gapAngle+Math.PI*2);
+    ctx.lineWidth = 18;
+    ctx.strokeStyle = "#00ff88";
+    ctx.arc(CX(), r.y, 80, r.gapAngle + 0.8, r.gapAngle + Math.PI*2);
     ctx.stroke();
   });
 
+  // Ball
   ctx.beginPath();
-  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fillStyle="red";
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fillStyle = "red";
   ctx.fill();
 }
 
 /* ================= PROGRESS ================= */
 function updateBar(){
-  const total=6+level*2;
-  const done=total-ringsLeft;
-  bar.style.width=(done/total*100)+"%";
+  const total = 6 + level * 2;
+  const done  = total - ringsLeft;
+  bar.style.width = (done/total*100) + "%";
 }
 
-/* ================= NEXT / RESTART ================= */
+/* ================= NEXT ================= */
 function next(){
-  overlay.style.display="none";
+  overlay.style.display = "none";
   if(msg.textContent.includes("LEVEL")){
     level++;
-    uiLevel.textContent=level;
+    uiLevel.textContent = level;
   }else{
-    level=1; score=0;
-    uiLevel.textContent=1;
-    uiScore.textContent=0;
+    level = 1;
+    score = 0;
+    uiLevel.textContent = 1;
+    uiScore.textContent = 0;
   }
-  ball.y=120; ball.vy=0;
-  running=true;
+  ball.y = 120;
+  ball.vy = 0;
+  running = true;
   buildLevel();
 }
 
