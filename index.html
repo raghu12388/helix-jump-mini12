@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Stack Ball Mini</title>
+<title>Stack Ball Mini – Fire Combo</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
 html,body{
@@ -10,11 +10,8 @@ html,body{
   padding:0;
   overflow:hidden;
   background:#111;
-  touch-action: manipulation;
 }
-canvas{
-  display:block;
-}
+canvas{display:block}
 #ui{
   position:fixed;
   top:10px;
@@ -27,90 +24,60 @@ canvas{
   padding:6px 14px;
   border-radius:20px;
 }
+#fire{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  color:orange;
+  font-size:22px;
+  font-family:Arial;
+  display:none;
+}
 </style>
 </head>
 <body>
 
-<div id="ui">Score: <span id="score">0</span> | Combo: <span id="combo">0</span></div>
+<div id="ui">
+Score: <span id="score">0</span> |
+Combo: <span id="combo">0</span>
+</div>
+<div id="fire">🔥 FIRE MODE 🔥</div>
+
 <canvas id="game"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 resize();
-window.addEventListener("resize", resize);
+window.onresize=resize;
 
 function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
 }
 
-let gravity = 0.6;
-let jump = -12;
-let score = 0;
-let combo = 0;
-let speed = 3;
-let gameOver = false;
+let gravity=0.6;
+let jump=-12;
+let score=0;
+let combo=0;
+let fire=false;
+let gameOver=false;
 
-const ball = {
-  x: canvas.width/2,
-  y: 150,
-  r: 12,
-  vy: 0
+const ball={
+  x:canvas.width/2,
+  y:150,
+  r:12,
+  vy:0
 };
 
-let platforms = [];
-const gap = 80;
+let platforms=[];
+const gap=80;
 
 function createPlatforms(){
   platforms=[];
-  let y = 200;
-  for(let i=0;i<15;i++){
+  let y=200;
+  for(let i=0;i<18;i++){
     platforms.push({
       y,
-      type: Math.random()<0.2 ? "bad":"good"
-    });
-    y += gap;
-  }
-}
-createPlatforms();
-
-function drawBall(){
-  ctx.fillStyle="white";
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fill();
-}
-
-function drawPlatforms(){
-  platforms.forEach(p=>{
-    ctx.fillStyle = p.type==="bad" ? "red":"lime";
-    ctx.fillRect(ball.x-80,p.y,160,16);
-  });
-}
-
-function update(){
-  if(gameOver) return;
-
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  ball.vy += gravity;
-  ball.y += ball.vy;
-
-  if(ball.y > canvas.height/2){
-    let diff = ball.y - canvas.height/2;
-    ball.y = canvas.height/2;
-    platforms.forEach(p=>p.y -= diff);
-    score += Math.floor(diff/10);
-    document.getElementById("score").innerText=score;
-  }
-
-  platforms.forEach(p=>{
-    if(
-      ball.y + ball.r > p.y &&
-      ball.y - ball.r < p.y+16 &&
-      ball.vy > 0
-    ){
-      if(p.type==="bad"){
-        gameOver=true;
-        alert("G
+      type:Math.random()<0.25?"bad
